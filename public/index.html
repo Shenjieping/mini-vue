@@ -10,8 +10,14 @@
 
   <script>
     let vm = new Vue({
-      el: '#app'
+      el: '#app',
+      data() {
+        return {
+          name: 'shenjp'
+        }
+      }
     });
+    console.log(vm._data)
   </script>
 </body>
 </html>

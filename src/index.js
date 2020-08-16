@@ -1,5 +1,10 @@
+// Vue核心代码
+import { initMixin } from './init'
 function Vue(options) {
-  console.log(options)
+  // 进行Vue的初始化操作
+  this._init(options);
 }
+
+initMixin(Vue);
 
 export default Vue;
