@@ -42,17 +42,93 @@
     return Constructor;
   }
 
+  /**
+   * @param {any} obj 需要判断的对象
+   * @returns {boolean}
+   */
   function isObject(obj) {
     return obj && _typeof(obj) === 'object';
   }
+  /**
+   * 给某个对象设置私有属性
+   * @param {Object} obj 需要添加的对象
+   * @param {string} key 属性
+   * @param {any} val 值
+   * @param {boolean} enumerable 是否可枚举
+   */
+
+  function def(obj, key, val, enumerable) {
+    Object.defineProperty(obj, key, {
+      value: val,
+      enumerable: !!enumerable,
+      writable: true,
+      configurable: true
+    });
+  }
+
+  /* 
+    我们要对数组的 7 个方法进行重写：
+      push, pop, shift, unshift, reverse, sort, splice
+    因为这7个方法会改变原数组
+   */
+  var arrayProto = Array.prototype; // 原型链查找，会向上查找，先查找我们重写的，如果没有再向上查找原型链上的
+
+  var arrayMethods = Object.create(arrayProto); // 拷贝原型上的方法，防止我们的代码破坏了原型链
+
+  var methodsToPatch = ['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse'];
+  methodsToPatch.forEach(function (method) {
+    arrayMethods[method] = function () {
+      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      // 调用我们的方法后。又去调用了原生的方法
+      var result = arrayProto[method].apply(this, args);
+      var ob = this.__ob__; // 将实例上的方法传过来
+      // push shift splice 添加的值可能还是一个对象
+
+      var inserted; // 保存当前用户插入的元素
+
+      switch (method) {
+        case 'push':
+        case 'shift':
+          inserted = args;
+          break;
+
+        case 'splice':
+          // splice有3个属性，只有最后一个属性才是新增的值
+          inserted = args.slice(2);
+          break;
+      }
+
+      if (inserted) {
+        // 将新增的属性继续观察
+        ob.observerArray(inserted);
+      }
+
+      return result;
+    };
+  });
 
   var Observer = /*#__PURE__*/function () {
     function Observer(value) {
       _classCallCheck(this, Observer);
 
-      this.value = value;
+      this.value = value; // 给当前值，添加一个不可枚举的私有属性，并于传值
 
-      if (Array.isArray(value)) ; else {
+      def(value, '__ob__', this); // 这里如果不设置为不可枚举的值，会导致死循环
+
+      if (Array.isArray(value)) {
+        // 如果是数组的话。并不会对索引进行观察。因为会导致性能问题
+        // 如果数组里放的是对象。我再对里面的对象进行监控
+        this.observerArray(value); // 我们还需要对 push pop shift unshift splice reverse sort 进行重写
+
+        value.__proto__ = arrayMethods;
+        /* 
+          源码这里做了一个兼容处理，因为IE老浏览器是不支持 __proto__ 设置原型链
+          咋们这里为了简化，不做处理
+         */
+      } else {
         // 如果是对象，则进行下一步
         this.walk(value);
       }
@@ -67,6 +143,13 @@
           var key = keys[i];
           var value = obj[key];
           defineReactive(obj, key, value); // 定义响应式数据
+        }
+      }
+    }, {
+      key: "observerArray",
+      value: function observerArray(items) {
+        for (var i = 0; i < items.length; i++) {
+          observe(items[i]);
         }
       }
     }]);
@@ -93,6 +176,10 @@
         value = newValue;
       }
     });
+    /* 
+      通过Vue源码可以看出，data还可以设置 get/set属性
+        如果设置了get，需要先执行函数，拿到返回值再进行处理。为了简化，这里不做这一层的处理
+     */
   } // 用于观测数据，给每个属性添加 get 和 set 方法
 
   function observe(value) {
