@@ -6,6 +6,10 @@
   <title>Document</title>
 </head>
 <body>
+  <div id="app">
+    <p>name: {{ name }}</p>
+    <p>age: {{ age }}</p>
+  </div>
   <script src="/dist/umd/vue.js"></script>
 
   <script>
@@ -14,13 +18,30 @@
       data() {
         return {
           name: 'shenjp',
+          age: '18',
           address: [{a: 1}, {a: 2}]
         }
-      }
+      },
+      // template: `<div></div>`
+      // render() {}
     });
+    /* 
+      这里的模板优先级顺序：render > template > html
+     */
     vm._data.name = 'ssss'
     vm._data.address.push({a: 3})
     console.log(vm._data)
+
+    /*
+      <div id="app">
+        <p>name: {{ name }}</p>
+        <p>age: {{ age }}</p>
+      </div>
+      使用render函数来描述以上DOM结构
+      render() {
+        return _c('div', {id: 'app'}, _c('p', undefined, _v(_s(name))), _c('p', undefined, _v(_s(age))));
+      }
+    */
   </script>
 </body>
 </html>

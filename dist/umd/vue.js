@@ -216,6 +216,42 @@
     observe(data); // 响应式原理
   }
 
+  // 字母a-zA-Z_ - . 数组小写字母 大写字母
+  function parseHTML(html) {
+    console.log(html);
+  }
+
+  /* 
+    ast 语法树 -> 用对象来描述原生的语法
+    虚拟DOM -> 用对象来描述DOM节点
+   */
+
+  function compileToFunction(template) {
+    var ast = parseHTML(template);
+    return function render() {};
+  }
+  /* 
+    <div id="app">
+      <p>test</p>
+    </div>
+
+    AST语法树, 用一种抽象的语法来描述原生的HTML结构
+    let root = {
+      tag: 'div',
+      attrs: [{name: 'id', value: 'app'}],
+      type: 1,
+      children: [{
+        tag: 'p',
+        attrs: [],
+        type: 1,
+        children: [{
+          type: 3,
+          text: 'test'
+        }]
+      }]
+    }
+   */
+
   function initMixin(Vue) {
     // 初始化流程
     Vue.prototype._init = function (options) {
@@ -225,7 +261,45 @@
       vm.$options = options; // 初始化转态
 
       initState(vm); // 分割代码
+      // 如果用户传入了el属性，需要将页面渲染出来
+      // 如果用户传入了el，就要实现挂载的流程
+
+      if (vm.$options.el) {
+        vm.$mount(vm.$options.el);
+      }
     };
+
+    Vue.prototype.$mount = function (el) {
+      var vm = this;
+      var options = vm.$options;
+      el = document.querySelector(el); // 默认会先查找render，没有就会采用 template,在没有就用html
+
+      if (!options.render) {
+        // 对模板进行编译
+        var template = options.template;
+
+        if (!template && el) {
+          // 使用的html
+          template = getOuterHTML(el); // 拿到所有的DOM文档
+        } // 我们需要将template转换为render方法
+
+
+        var render = compileToFunction(template);
+        options.render = render;
+      }
+    };
+  }
+
+  function getOuterHTML(el) {
+    // 获取html元素
+    if (el.outerHTML) {
+      // outerHTML 在IE中不兼容
+      return el.outerHTML;
+    } else {
+      var container = document.createElement('div');
+      container.appendChild(el.cloneNode(true));
+      return container.innerHTML;
+    }
   }
 
   // Vue核心代码
