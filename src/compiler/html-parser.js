@@ -15,6 +15,12 @@ const startTagClose = /^\s*(\/?)>/; // 匹配标签结束的 >
 const defaultTagRE = /\{\{((?:.|\r?\n)+?)\}\}/g;
 
 export function parseHTML(html) {
+  let root; // 根节点
+  let stack = []; // 判断是否是闭合标签
+  let currentParent; // 用来标识当前元素的父节点
+  const ELEMENT_TYPE = 1; // 元素节点
+  const TEXT_TYPE = 3; // 文本节点
+
   // 不停的去解析html字符串
   while (html) {
     let textEnd = html.indexOf('<'); // 从html < 开始匹配
@@ -70,19 +76,53 @@ export function parseHTML(html) {
   function advance(n) {
     html = html.substring(n);
   }
-}
 
-function start (tagName, attrs) {
-  // 开始标签
-  console.log('标签，属性', tagName, attrs);
-}
+  function start (tagName, attrs) {
+    // 开始标签，创建一个AST元素
+    let element = createAstElement(tagName, attrs);
+    if (!root) { // 第一次没有root，就生成一个根节点
+      root = element;
+    }
+    currentParent = element; // 把点前元素标记成ast树
+    stack.push(element); // 将当前标签存放到栈中
+  }
 
-function chars(text) {
-  // 文本节点
-  console.log('文本', text.trim());
-}
+  function chars(text) {
+    text = text.trim();
+    // 文本节点
+    if (text) {
+      currentParent.children.push({
+        text,
+        type: TEXT_TYPE
+      });
+    }
+  }
 
-function end(tagName) {
-  // 结束标签
-  console.log('结尾', tagName);
+  function end(tagName) {
+    // 结束标签
+    let element = stack.pop();
+    // 判断标签是否已经闭合，此处暂未考虑自闭合的标签
+    if (element.tag !== tagName) {
+      throw new TypeError('标签未闭合');
+    }
+    // 我要标识当前这个元素是属于父元素的
+    currentParent = stack[stack.length - 1];
+    if (currentParent) {
+      element.parent = currentParent;
+      currentParent.children.push(element); // 实现了一个树的父子关系
+    }
+  }
+
+  function createAstElement(tagName, attrs) {
+    // 基本的树结构
+    return {
+      tag: tagName,
+      type: ELEMENT_TYPE,
+      children: [],
+      attrs,
+      parent: null
+    };
+  }
+
+  return root;
 }
