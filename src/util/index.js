@@ -21,3 +21,20 @@ export function def (obj, key, val, enumerable) {
     configurable: true
   })
 }
+
+/**
+ * 
+ * @param {object} vm 代理的对象
+ * @param {string} source 
+ * @param {string} key 代理的属性
+ */
+export function proxy(vm, source, key) {
+  Object.defineProperty(vm, key, {
+    get() {
+      return vm[source][key];
+    },
+    set(newValue) {
+      vm[source][key] = newValue;
+    }
+  })
+}

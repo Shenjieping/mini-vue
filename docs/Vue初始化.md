@@ -50,6 +50,7 @@ export function initMixin (Vue) {
 
 ```js
 import { observe } from "./observer/index";
+import { proxy } from "./util";
 
 export function initState(vm) {
   const opts = vm.$options;
@@ -84,6 +85,11 @@ function initData(vm) {
   // 对象劫持，用户改变了数据，我希望能检测到，从而更新页面
   // MVVM 数据变化可以驱动视图
 
+  // 为了让用户更好的使用，需要将属性直接代理到 vm 上,用户可以通过 vm.xx 取值
+  for (let key in vm._data) {
+    proxy(vm, '_data', key);
+  }
+
   // 通过Object.defineProperty 给属性增加get和set方法
   observe(data); // 响应式原理
 }
@@ -92,6 +98,25 @@ function initComputed(vm) {
 }
 function initWatch(vm) {
   
+}
+```
+
+```js
+/**
+ * 
+ * @param {object} vm 代理的对象
+ * @param {string} source 
+ * @param {string} key 代理的属性
+ */
+export function proxy(vm, source, key) {
+  Object.defineProperty(vm, key, {
+    get() {
+      return vm[source][key];
+    },
+    set(newValue) {
+      vm[source][key] = newValue;
+    }
+  })
 }
 ```
 

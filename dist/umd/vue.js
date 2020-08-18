@@ -262,12 +262,28 @@
     if (opts.watch) ;
   }
 
+  function proxy(vm, source, key) {
+    Object.defineProperty(vm, key, {
+      get: function get() {
+        return vm[source][key];
+      },
+      set: function set(newValue) {
+        vm[source][key] = newValue;
+      }
+    });
+  }
+
   function initData(vm) {
     // 数据初始化
     var data = vm.$options.data;
     data = vm._data = typeof data === 'function' ? data.call(vm) : data; // 对象劫持，用户改变了数据，我希望能检测到，从而更新页面
     // MVVM 数据变化可以驱动视图
-    // 通过Object.defineProperty 给属性增加get和set方法
+    // 为了让用户更好的使用，需要将属性直接代理到 vm 上
+
+    for (var key in vm._data) {
+      proxy(vm, '_data', key);
+    } // 通过Object.defineProperty 给属性增加get和set方法
+
 
     observe(data); // 响应式原理
   }
