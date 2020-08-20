@@ -42,6 +42,55 @@
     return Constructor;
   }
 
+  function _defineProperty(obj, key, value) {
+    if (key in obj) {
+      Object.defineProperty(obj, key, {
+        value: value,
+        enumerable: true,
+        configurable: true,
+        writable: true
+      });
+    } else {
+      obj[key] = value;
+    }
+
+    return obj;
+  }
+
+  function ownKeys(object, enumerableOnly) {
+    var keys = Object.keys(object);
+
+    if (Object.getOwnPropertySymbols) {
+      var symbols = Object.getOwnPropertySymbols(object);
+      if (enumerableOnly) symbols = symbols.filter(function (sym) {
+        return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+      });
+      keys.push.apply(keys, symbols);
+    }
+
+    return keys;
+  }
+
+  function _objectSpread2(target) {
+    for (var i = 1; i < arguments.length; i++) {
+      var source = arguments[i] != null ? arguments[i] : {};
+
+      if (i % 2) {
+        ownKeys(Object(source), true).forEach(function (key) {
+          _defineProperty(target, key, source[key]);
+        });
+      } else if (Object.getOwnPropertyDescriptors) {
+        Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+      } else {
+        ownKeys(Object(source)).forEach(function (key) {
+          Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+        });
+      }
+    }
+
+    return target;
+  }
+
   function _slicedToArray(arr, i) {
     return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest();
   }
@@ -680,6 +729,8 @@
 
   function mountComponent(vm, el) {
     vm.$el = el; // 真实的dom元素
+
+    callHook(vm, 'beforeMount'); // 挂载之前的钩子
     // 渲染页面
 
     var updateComponent = function updateComponent() {
@@ -690,6 +741,8 @@
 
 
     new Watcher(vm, updateComponent, function () {}, true); //true 表示他是一个渲染Watcher
+
+    callHook(vm, 'mounted'); // 挂载结束的钩子
 
     /* 
       Watcher 就是用来渲染的
@@ -703,6 +756,67 @@
 
       vm.$el = patch(vm.$el, vnode); // 需要用虚拟节点创建出真实节点，替换掉原有的$el
     };
+  } // 此方法调用传入的生命周期钩子
+
+  function callHook(vm, hook) {
+    var handlers = vm.$options[hook];
+
+    if (handlers) {
+      handlers.forEach(function (fn) {
+        return fn.call(vm);
+      });
+    }
+  }
+
+  var LIFECYCLE_HOOKS = ['beforeCreate', 'created', 'beforeMount', 'mounted', 'beforeUpdate', 'updated', 'beforeDestroy', 'destroyed', 'activated', 'deactivated', 'errorCaptured', 'serverPrefetch'];
+  var strats = {};
+  LIFECYCLE_HOOKS.forEach(function (hook) {
+    strats[hook] = mergeHooks;
+  });
+
+  function mergeHooks(parentVal, childVal) {
+    // 将生命周期合并为一个数组
+    if (childVal) {
+      if (parentVal) {
+        return parentVal.concat(childVal);
+      } else {
+        return [childVal];
+      }
+    } else {
+      return parentVal;
+    }
+  }
+
+  function mergeOptions(parent, child) {
+    var options = {};
+
+    for (var key in parent) {
+      mergeField(key);
+    }
+
+    for (var _key in child) {
+      if (!parent.hasOwnProperty(_key)) {
+        // 如果已经合并过了就不需要再次合并了
+        mergeField(_key);
+      }
+    } // 默认的合并策略，有些属性需要有特殊的合并策略，比如生命周期，需要合并成一个数组
+
+
+    function mergeField(key) {
+      if (strats[key]) {
+        return options[key] = strats[key](parent[key], child[key]);
+      }
+
+      if (_typeof(parent[key]) === 'object' && _typeof(child[key]) === 'object') {
+        options[key] = _objectSpread2(_objectSpread2({}, parent[key]), child[key]);
+      } else if (!child[key]) {
+        options[key] = parent[key];
+      } else {
+        options[key] = child[key];
+      }
+    }
+
+    return options;
   }
 
   function initMixin(Vue) {
@@ -710,10 +824,16 @@
     Vue.prototype._init = function (options) {
       // 数据的劫持
       var vm = this; // vue 中使用 this.$options 指代的就是用户传递的属性
+      // vm.constuctor 将用户传递的和全局的进行合并
 
-      vm.$options = options; // 初始化转态
+      vm.$options = mergeOptions(vm.constructor.options, options);
+      console.log(vm.$options);
+      callHook(vm, 'beforeCreate'); // 创建之前
+      // 初始化转态
 
       initState(vm); // 分割代码
+
+      callHook(vm, 'created'); // 创建之后
       // 如果用户传入了el属性，需要将页面渲染出来
       // 如果用户传入了el，就要实现挂载的流程
 
@@ -820,6 +940,33 @@
     };
   }
 
+  function initGlobalAPI(Vue) {
+    // 整合了所有的全局API
+    Vue.options = {};
+
+    Vue.mixin = function (mixin) {
+      this.options = mergeOptions(this.options, mixin);
+    };
+
+    Vue.mixin({
+      beforeCreate: function beforeCreate() {
+        console.log('mixin1 beforeCreate');
+      },
+      a: 1
+    });
+    Vue.mixin({
+      beforeCreate: function beforeCreate() {
+        console.log('mixin2 beforeCreate');
+      },
+      mounted: function mounted() {
+        console.log('mixin mounted');
+      },
+      b: 2
+    }); // 生命周期的合并策略 [beforeCreate, beforeCreate]
+
+    console.log(Vue.options);
+  }
+
   // Vue核心代码
 
   function Vue(options) {
@@ -829,7 +976,9 @@
 
   initMixin(Vue);
   renderMinxin(Vue);
-  lifecycleMixin(Vue);
+  lifecycleMixin(Vue); // 初始化全局的API
+
+  initGlobalAPI(Vue);
 
   return Vue;
 

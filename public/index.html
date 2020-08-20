@@ -23,6 +23,15 @@
           address: [{a: 1}, {a: 2}]
         }
       },
+      beforeCreate() {
+        console.log('vue beforeCreate');
+      },
+      created() {
+        console.log('created', this.age);
+      },
+      mounted() {
+        console.log('mounted', this.$el);
+      }
       // template: `<div></div>`
       // render() {}
     });
