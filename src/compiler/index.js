@@ -18,8 +18,8 @@ export function compileToFunction(template) {
   // console.log(code);
   // 所有的模板引擎实现，都需要用new Fucntion() 和 with
   let renderFn = new Function(`with(this){return ${code}}`);
-  console.log(renderFn);
-  return function render() {}
+  // console.log(renderFn);
+  return renderFn;
 }
 
 /* 

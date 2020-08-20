@@ -121,6 +121,23 @@
       configurable: true
     });
   }
+  /**
+   * 
+   * @param {object} vm 代理的对象
+   * @param {string} source 
+   * @param {string} key 代理的属性
+   */
+
+  function proxy(vm, source, key) {
+    Object.defineProperty(vm, key, {
+      get: function get() {
+        return vm[source][key];
+      },
+      set: function set(newValue) {
+        vm[source][key] = newValue;
+      }
+    });
+  }
 
   /* 
     我们要对数组的 7 个方法进行重写：
@@ -262,23 +279,12 @@
     if (opts.watch) ;
   }
 
-  function proxy(vm, source, key) {
-    Object.defineProperty(vm, key, {
-      get: function get() {
-        return vm[source][key];
-      },
-      set: function set(newValue) {
-        vm[source][key] = newValue;
-      }
-    });
-  }
-
   function initData(vm) {
     // 数据初始化
     var data = vm.$options.data;
     data = vm._data = typeof data === 'function' ? data.call(vm) : data; // 对象劫持，用户改变了数据，我希望能检测到，从而更新页面
     // MVVM 数据变化可以驱动视图
-    // 为了让用户更好的使用，需要将属性直接代理到 vm 上
+    // 为了让用户更好的使用，需要将属性直接代理到 vm 上,用户可以通过 vm.xx 取值
 
     for (var key in vm._data) {
       proxy(vm, '_data', key);
@@ -555,9 +561,9 @@
     var code = generage(ast); // console.log(code);
     // 所有的模板引擎实现，都需要用new Fucntion() 和 with
 
-    var renderFn = new Function("with(this){return ".concat(code, "}"));
-    console.log(renderFn);
-    return function render() {};
+    var renderFn = new Function("with(this){return ".concat(code, "}")); // console.log(renderFn);
+
+    return renderFn;
   }
   /* 
     <div id="app">
@@ -580,6 +586,124 @@
       }]
     }
    */
+
+  var Watcher = /*#__PURE__*/function () {
+    function Watcher(vm, expOrFn, cb, options, isRenderWatcher) {
+      _classCallCheck(this, Watcher);
+
+      this.vm = vm;
+      this.cb = cb;
+      this.options = options;
+      this.isRenderWatcher = isRenderWatcher;
+      this.getter = expOrFn; // 将内部传过来的函数放在getter属性上
+
+      this.get();
+    }
+
+    _createClass(Watcher, [{
+      key: "get",
+      value: function get() {
+        this.getter(); // 执行的就是 vm._update
+      }
+    }]);
+
+    return Watcher;
+  }();
+
+  function patch(oldVnode, vnode) {
+    // console.log(oldVnode, vnode);
+    // 递归创建新的节点。替换掉老的节点
+    // 判断是更新还是要渲染
+    var isRealElement = oldVnode.nodeType;
+
+    if (isRealElement) {
+      // 如果不存在说明是要渲染
+      var oldElm = oldVnode; // div id = "app"
+
+      var parentElm = oldElm.parentNode; // body
+
+      var el = createElm(vnode); // 创建元素
+
+      parentElm.insertBefore(el, oldElm.nextSibling); // 插入到老的元素的下一个节点。再把老节点删除，就实现了替换
+
+      parentElm.removeChild(oldElm);
+      return el; // 将替换后的节点挂载到 $el上
+    }
+  }
+
+  function createElm(vnode) {
+    // 根据虚拟节点创建真实的节点
+    var tag = vnode.tag,
+        children = vnode.children,
+        key = vnode.key,
+        data = vnode.data,
+        text = vnode.text; // 是标签就创建标签
+
+    if (typeof tag === 'string') {
+      // 如果tag存在，就要创建一个元素
+      vnode.el = document.createElement(tag);
+      updatePropties(vnode); // 将属性添加到元素上
+
+      children.forEach(function (child) {
+        // 递归创建子节点，放到父节点中
+        return vnode.el.appendChild(createElm(child));
+      });
+    } else {
+      // 不存在就创建一个文本几万点
+      // 虚拟dom上映射着真实dom
+      vnode.el = document.createTextNode(text);
+    }
+
+    return vnode.el;
+  } // 更新属性
+
+
+  function updatePropties(vnode) {
+    var newProps = vnode.data || {};
+    var el = vnode.el;
+
+    for (var key in newProps) {
+      if (key === 'style') {
+        // 将样式属性添加上
+        for (var styleName in newProps[key]) {
+          el.style[styleName] = newProps[key][styleName];
+        }
+      } else if (key === 'class') {
+        // class特殊处理
+        el.className = newPropsp[key];
+      } else {
+        // 剩下的就直接放上去就行了
+        el.setAttribute(key, newProps[key]);
+      }
+    }
+  }
+
+  function mountComponent(vm, el) {
+    vm.$el = el; // 真实的dom元素
+    // 渲染页面
+
+    var updateComponent = function updateComponent() {
+      // 渲染和更新都会调用此方法
+      // 返回的是虚拟DOM，传给update 进行渲染操作
+      vm._update(vm._render());
+    }; // 渲染Watcher。每个组件都有一个Watcher
+
+
+    new Watcher(vm, updateComponent, function () {}, true); //true 表示他是一个渲染Watcher
+
+    /* 
+      Watcher 就是用来渲染的
+      vm._render 通过解析render方法，渲染出虚拟dom
+      vm._update 通过虚拟dom,创建真实的dom
+     */
+  }
+  function lifecycleMixin(Vue) {
+    Vue.prototype._update = function (vnode) {
+      var vm = this; // 通过虚拟节点，渲染出真实的dom
+
+      vm.$el = patch(vm.$el, vnode); // 需要用虚拟节点创建出真实节点，替换掉原有的$el
+    };
+  }
 
   function initMixin(Vue) {
     // 初始化流程
@@ -615,7 +739,10 @@
 
         var render = compileToFunction(template);
         options.render = render;
-      }
+      } // 挂载组件
+
+
+      mountComponent(vm, el);
     };
   }
 
@@ -631,6 +758,68 @@
     }
   }
 
+  // 创建虚拟节点
+  var VNode = function VNode(tag, data, children, text) {
+    _classCallCheck(this, VNode);
+
+    this.tag = tag;
+    this.data = data;
+    this.key = data && data.key;
+    this.children = children;
+    this.text = text;
+  };
+
+  function createElement(tag) {
+    var data = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
+    for (var _len = arguments.length, children = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
+      children[_key - 2] = arguments[_key];
+    }
+
+    return new VNode(tag, data, children, undefined);
+  }
+  function createTextNode(text) {
+    // 创建文本节点
+    return new VNode(undefined, undefined, undefined, text);
+  } // 虚拟节点，就是通过 _c _v 实现用对象来描述dom的操作
+  // 将template 转换成AST语法树 -> 生成render方法 -> 生成虚拟dom -> 生成真实dom
+  // 页面更新，重新生成虚拟dom -> diff更新dom
+
+  function renderMinxin(Vue) {
+    // 渲染虚拟DOM
+    Vue.prototype._render = function () {
+      var vm = this;
+      var render = vm.$options.render;
+      var vnode = render.call(vm); // 去实例化，取值
+
+      return vnode;
+    };
+    /* 
+      _c 创建元素的虚拟节点
+      _v 创建文本的虚拟节点
+      _s JSON.stringfiy
+     */
+
+
+    Vue.prototype._c = function () {
+      return createElement.apply(void 0, arguments); //tagm data, children
+    };
+
+    Vue.prototype._v = function (text) {
+      return createTextNode(text);
+    };
+
+    Vue.prototype._s = function (val) {
+      if (!val) {
+        return '';
+      } else if (_typeof(val) === 'object') {
+        return JSON.stringify(val);
+      }
+
+      return val;
+    };
+  }
+
   // Vue核心代码
 
   function Vue(options) {
@@ -639,6 +828,8 @@
   }
 
   initMixin(Vue);
+  renderMinxin(Vue);
+  lifecycleMixin(Vue);
 
   return Vue;
 
