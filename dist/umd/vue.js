@@ -232,6 +232,53 @@
     };
   });
 
+  var id = 0;
+
+  var Dep = /*#__PURE__*/function () {
+    function Dep() {
+      _classCallCheck(this, Dep);
+
+      this.id = id++; // 记录一个唯一的id，用于后面的去重
+
+      this.subs = [];
+    }
+
+    _createClass(Dep, [{
+      key: "depend",
+      value: function depend() {
+        // watcher 和 dep 的关系：一个watcher 对应多个depl，一个dep对应多个Watcher，他们之间要互相记录一下
+        // this.subs.push(Dep.target); // 观察者模式，这样可能会重复调用
+        // 让这个Watcher记住我的dep
+        Dep.target.addDep(this);
+      }
+    }, {
+      key: "notify",
+      value: function notify() {
+        this.subs.forEach(function (watcher) {
+          return watcher.update();
+        });
+      }
+    }, {
+      key: "addSub",
+      value: function addSub(watcher) {
+        // 这里放的就是Watcher
+        this.subs.push(watcher);
+      }
+    }]);
+
+    return Dep;
+  }();
+  var stack = []; // 目前可以做到将Watcher保存起来，和移除
+
+  function pushTarget(watcher) {
+    Dep.target = watcher;
+    stack.push(watcher);
+  }
+  function popTarget() {
+    stack.pop();
+    Dep.target = stack[stack.length - 1];
+  }
+
   var Observer = /*#__PURE__*/function () {
     function Observer(value) {
       _classCallCheck(this, Observer);
@@ -280,22 +327,30 @@
   }();
 
   function defineReactive(obj, key, value) {
-    // 递归设置嵌套的对象
+    var dep = new Dep(); // 递归设置嵌套的对象
+
     observe(value);
     Object.defineProperty(obj, key, {
       get: function get() {
+        // 每个属性都对应着自己的渲染Watcher
+        if (Dep.target) {
+          // 如果当前有Watcher
+          dep.depend(); // 我要将Watcher存起来
+        }
+
         return value;
       },
       set: function set(newValue) {
         // 设置值的时候做一些操作
         if (value === newValue) {
           return;
-        }
+        } // console.log('update 视图更新');
 
-        console.log('update 视图更新');
+
         observe(newValue); // 如果新设置的值是一个对象，也要被监控
 
         value = newValue;
+        dep.notify(); // 通知依赖更新操作
       }
     });
     /* 
@@ -636,23 +691,49 @@
     }
    */
 
+  var id$1 = 0;
+
   var Watcher = /*#__PURE__*/function () {
     function Watcher(vm, expOrFn, cb, options, isRenderWatcher) {
       _classCallCheck(this, Watcher);
 
       this.vm = vm;
       this.cb = cb;
+      this.id = id$1++;
       this.options = options;
       this.isRenderWatcher = isRenderWatcher;
+      this.depsId = new Set();
+      this.deps = [];
       this.getter = expOrFn; // 将内部传过来的函数放在getter属性上
 
-      this.get();
+      this.get(); // 调用get方法，会让渲染Watcher执行
     }
 
     _createClass(Watcher, [{
       key: "get",
       value: function get() {
+        pushTarget(this); // 将当前的Watcher存起来
+
         this.getter(); // 执行的就是 vm._update
+
+        popTarget(); // 移除Watcher
+      }
+    }, {
+      key: "update",
+      value: function update() {
+        this.get();
+      }
+    }, {
+      key: "addDep",
+      value: function addDep(dep) {
+        // watcher 不能放重读的dep，同样dep里不能放重复的Watcher
+        var id = dep.id;
+
+        if (!this.depsId.has(id)) {
+          this.depsId.add(id);
+          this.deps.push(dep);
+          dep.addSub(this); // 让dep记住Watcher
+        }
       }
     }]);
 
@@ -827,7 +908,6 @@
       // vm.constuctor 将用户传递的和全局的进行合并
 
       vm.$options = mergeOptions(vm.constructor.options, options);
-      console.log(vm.$options);
       callHook(vm, 'beforeCreate'); // 创建之前
       // 初始化转态
 
@@ -947,24 +1027,25 @@
     Vue.mixin = function (mixin) {
       this.options = mergeOptions(this.options, mixin);
     };
-
+    /*
     Vue.mixin({
-      beforeCreate: function beforeCreate() {
+      beforeCreate() {
         console.log('mixin1 beforeCreate');
       },
       a: 1
-    });
+    })
     Vue.mixin({
-      beforeCreate: function beforeCreate() {
+      beforeCreate() {
         console.log('mixin2 beforeCreate');
       },
-      mounted: function mounted() {
+      mounted() {
         console.log('mixin mounted');
       },
       b: 2
-    }); // 生命周期的合并策略 [beforeCreate, beforeCreate]
+    }) */
+    // 生命周期的合并策略 [beforeCreate, beforeCreate]
+    // console.log(Vue.options);
 
-    console.log(Vue.options);
   }
 
   // Vue核心代码

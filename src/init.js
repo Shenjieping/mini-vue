@@ -12,8 +12,6 @@ export function initMixin (Vue) {
     // vm.constuctor 将用户传递的和全局的进行合并
     vm.$options = mergeOptions(vm.constructor.options, options);
 
-    console.log(vm.$options);
-
     callHook(vm, 'beforeCreate'); // 创建之前
     // 初始化转态
     initState(vm); // 分割代码

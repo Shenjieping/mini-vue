@@ -8,7 +8,7 @@
 <body>
   <div id="app" style="color: red; font-size: 20px;">
     hello
-    <p>name: {{ name }}</p>
+    <p>name: {{ name }} {{ name }} {{ name }} {{ name }}</p>
     <p>age: {{ age }}</p>
   </div>
   <script src="/dist/umd/vue.js"></script>
@@ -23,6 +23,7 @@
           address: [{a: 1}, {a: 2}]
         }
       },
+     /*
       beforeCreate() {
         console.log('vue beforeCreate');
       },
@@ -31,11 +32,15 @@
       },
       mounted() {
         console.log('mounted', this.$el);
-      }
+      } */
       // template: `<div></div>`
       // render() {}
     });
-    console.log(vm.name)
+    setTimeout(() => {
+      vm.name = 'xxx'; // 依赖收集
+      console.log(vm.name)
+      // vm._update(vm._render());
+    }, 1000);
     /* 
       这里的模板优先级顺序：render > template > html
      */

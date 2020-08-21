@@ -7,6 +7,7 @@ export function initGlobalAPI(Vue) {
     this.options = mergeOptions(this.options, mixin);
   }
 
+  /*
   Vue.mixin({
     beforeCreate() {
       console.log('mixin1 beforeCreate');
@@ -21,7 +22,7 @@ export function initGlobalAPI(Vue) {
       console.log('mixin mounted');
     },
     b: 2
-  })
+  }) */
   // 生命周期的合并策略 [beforeCreate, beforeCreate]
-  console.log(Vue.options);
+  // console.log(Vue.options);
 }

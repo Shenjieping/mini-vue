@@ -1,5 +1,6 @@
 import { isObject, def } from "../util/index";
 import { arrayMethods } from './array';
+import Dep from './dep';
 
 class Observer {
   constructor(value) {
@@ -38,19 +39,26 @@ class Observer {
 }
 
 export function defineReactive(obj, key, value) {
+  let dep = new Dep();
+
   // 递归设置嵌套的对象
   observe(value);
   Object.defineProperty(obj, key, {
     get() {
+      // 每个属性都对应着自己的渲染Watcher
+      if (Dep.target) { // 如果当前有Watcher
+        dep.depend(); // 我要将Watcher存起来
+      }
       return value;
     },
     set(newValue) { // 设置值的时候做一些操作
       if (value === newValue) {
         return;
       }
-      console.log('update 视图更新');
+      // console.log('update 视图更新');
       observe(newValue); // 如果新设置的值是一个对象，也要被监控
       value = newValue;
+      dep.notify(); // 通知依赖更新操作
     }
   });
 
