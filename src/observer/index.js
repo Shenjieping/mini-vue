@@ -5,6 +5,7 @@ import Dep from './dep';
 class Observer {
   constructor(value) {
     this.value = value;
+    this.dep = new Dep(); // 给数组用的
     // 给当前值，添加一个不可枚举的私有属性，并于传值
     def(value, '__ob__', this); // 这里如果不设置为不可枚举的值，会导致死循环
     if (Array.isArray(value)) {
@@ -39,15 +40,22 @@ class Observer {
 }
 
 export function defineReactive(obj, key, value) {
-  let dep = new Dep();
+  let dep = new Dep(); // 这个dep只能给对象使用
 
-  // 递归设置嵌套的对象
-  observe(value);
+  // 递归设置嵌套的对象,但是这里的value可能是对象，也可能是数组，返回的是当前observer对应的实例
+  let childOb = observe(value);
   Object.defineProperty(obj, key, {
     get() {
       // 每个属性都对应着自己的渲染Watcher
       if (Dep.target) { // 如果当前有Watcher
         dep.depend(); // 我要将Watcher存起来
+        if (childOb) { // 主要是对数组的依赖收集
+          childOb.dep.depend(); // 收集了数组的相关依赖
+          // 数组数组中嵌套了数组，也需要依赖收集
+          if (Array.isArray(value)) {
+            dependArray(value);
+          }
+        }
       }
       return value;
     },
@@ -74,4 +82,15 @@ export function observe(value) {
     return;
   }
   return new Observer(value);
+}
+
+function dependArray(value) {
+  for (let i = 0; i < value.length; i++) {
+    let current = value[i]; // 将数组中的每一个都取出来，数据变化后也去更新视图
+    // 数组中的数组也需要依赖收集
+    current.__ob__ && current.__ob__.dep.depend();
+    if (Array.isArray(current)) { // 如果是数组，进行递归
+      dependArray(current);
+    }
+  }
 }

@@ -39,6 +39,7 @@ methodsToPatch.forEach(method => {
       // 将新增的属性继续观察
       ob.observerArray(inserted);
     }
+    ob.dep.notify(); // 如果用户调用了这里的方法，去通知视图更新
     return result;
   }
 });
