@@ -720,6 +720,58 @@
     }
    */
 
+  var callbacks = []; // 将用户放入的cb,和内部的cb 都存到一个数组中，最后一起更新
+
+  var pending = false;
+  function nextTick(cb) {
+    callbacks.push(cb);
+
+    if (!pending) {
+      setTimeout(flushCallbacks, 0);
+      pending = true; // 如果正在调用，就拦截一下
+
+      callbacks = [];
+    }
+  }
+
+  function flushCallbacks() {
+    callbacks.forEach(function (cb) {
+      return cb();
+    });
+    pending = false;
+  }
+
+  var queue = [];
+  var has = {};
+  function queueWatcher(watcher) {
+    // 批量更新
+    var id = watcher.id;
+
+    if (!has[id]) {
+      // 这里拦截了。每次只能放进去一个值
+      queue.push(watcher);
+      has[id] = true; // 宏任务、微任务（微任务使用了Vue.nextTick, 对异步方法进行封装）
+      // Vue.nextTick => promise / mutationObserver / setImmediate / setTimeout 优雅降级的过程
+
+      nextTick(flushSchedulerQueue);
+      /*
+      setTimeout(() => {
+        queue.forEach(watcher => watcher.run())
+        queue = []; // 执行完之后将队列清空，下次继续清空
+        has = {};
+      }, 0); */
+    }
+  }
+
+  function flushSchedulerQueue() {
+    queue.forEach(function (watcher) {
+      return watcher.run();
+    });
+    queue = []; // 执行完之后将队列清空，下次继续清空
+
+    has = {};
+  }
+
   var id$1 = 0;
 
   var Watcher = /*#__PURE__*/function () {
@@ -741,6 +793,7 @@
     _createClass(Watcher, [{
       key: "get",
       value: function get() {
+        // console.log('update'); // 多次调用同一个属性，只更新最后一次
         pushTarget(this); // 将当前的Watcher存起来
 
         this.getter(); // 执行的就是 vm._update
@@ -750,7 +803,9 @@
     }, {
       key: "update",
       value: function update() {
-        this.get();
+        // 这里需要等待一起更新，因为每次调用 update 都会存入一个watcher
+        // this.get();
+        queueWatcher(this); // 先存到一个队列，等同步代码执行完之后再去执行
       }
     }, {
       key: "addDep",
@@ -763,6 +818,11 @@
           this.deps.push(dep);
           dep.addSub(this); // 让dep记住Watcher
         }
+      }
+    }, {
+      key: "run",
+      value: function run() {
+        this.get();
       }
     }]);
 
@@ -972,7 +1032,10 @@
 
 
       mountComponent(vm, el);
-    };
+    }; // 用户调用的nextTick
+
+
+    Vue.prototype.$nextTick = nextTick;
   }
 
   function getOuterHTML(el) {

@@ -2,6 +2,7 @@ import { initState } from './state';
 import { compileToFunction } from './compiler/index';
 import { mountComponent, callHook } from './lifecycle';
 import { mergeOptions } from './util/options';
+import { nextTick } from './util/next-tick';
 // 在原型上添加一个init方法
 export function initMixin (Vue) {
   // 初始化流程
@@ -45,6 +46,9 @@ export function initMixin (Vue) {
     // 挂载组件
     mountComponent(vm, el);
   }
+
+  // 用户调用的nextTick
+  Vue.prototype.$nextTick = nextTick;
 }
 
 function getOuterHTML (el) { // 获取html元素

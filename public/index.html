@@ -41,7 +41,12 @@
     setTimeout(() => {
       vm.name = 'xxx'; // 依赖收集
       vm.arr[0].push(4, 5, 6);
-      console.log(vm.name)
+      vm.arr[0].push(7);
+      vm.arr[0].push(8);
+      // console.log(vm.$el.innerHTML) // 这样拿不到最新的值，因为是异步更新的
+      vm.$nextTick(() => { // 在下一个执行队列中取值
+        console.log(vm.$el.innerHTML)
+      })
       // vm._update(vm._render());
     }, 1000);
     /* 
