@@ -2,7 +2,7 @@ let id = 0;
 export default class Dep {
   constructor() {
     this.id = id++; // 记录一个唯一的id，用于后面的去重
-    this.subs = [];
+    this.subs = []; // 这里存放依赖的watcher
   }
   depend() {
     // watcher 和 dep 的关系：一个watcher 对应多个depl，一个dep对应多个Watcher，他们之间要互相记录一下
@@ -19,6 +19,7 @@ export default class Dep {
 }
 
 let stack = [];
+Dep.target = null;
 // 目前可以做到将Watcher保存起来，和移除
 export function pushTarget(watcher) {
   Dep.target = watcher;

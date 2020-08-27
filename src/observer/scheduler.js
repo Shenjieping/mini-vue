@@ -1,7 +1,7 @@
 import { nextTick } from "../util/next-tick";
 
 let queue = [];
-let has = {};
+let has = {}; // 去重
 export function queueWatcher(watcher) { // 批量更新
   const id = watcher.id;
   if (!has[id]) { // 这里拦截了。每次只能放进去一个值

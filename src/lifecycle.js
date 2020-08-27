@@ -27,6 +27,12 @@ export function lifecycleMixin(Vue) {
     const vm = this;
     // 通过虚拟节点，渲染出真实的dom
     vm.$el = patch(vm.$el, vnode); // 需要用虚拟节点创建出真实节点，替换掉原有的$el
+  },
+  Vue.prototype.$forceUpdate = function () {
+    const vm = this
+    if (vm._watcher) {
+      vm._watcher.update()
+    }
   }
 }
 
@@ -34,6 +40,6 @@ export function lifecycleMixin(Vue) {
 export function callHook(vm, hook) {
   const handlers = vm.$options[hook];
   if (handlers) {
-    handlers.forEach(fn => fn.call(vm));
+    handlers.forEach(fn => fn.call(vm)); // 所有的生命周期的this，指向当前实例
   }
 }

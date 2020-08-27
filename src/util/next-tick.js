@@ -1,5 +1,5 @@
 let callbacks = []; // 将用户放入的cb,和内部的cb 都存到一个数组中，最后一起更新
-let pending = false
+let pending = false // 这个队列是否正在等待更新
 
 export function nextTick (cb) {
   callbacks.push(cb);
@@ -13,11 +13,11 @@ export function nextTick (cb) {
         4. 最后以上都不兼容，则降级到 setTimeout
      */
     pending = true; // 如果正在调用，就拦截一下，防止重复执行
-    callbacks = [];
   }
 }
 
 function flushCallbacks() {
   callbacks.forEach(cb => cb());
   pending = false;
+  callbacks = []; // 执行完之后把队列清空
 }

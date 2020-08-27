@@ -1,3 +1,5 @@
+import { isObject } from "./index.js";
+
 export const LIFECYCLE_HOOKS = [
   'beforeCreate',
   'created',
@@ -48,7 +50,7 @@ export function mergeOptions(parent, child) {
     if (strats[key]) {
       return options[key] = strats[key](parent[key], child[key]);
     }
-    if (typeof parent[key] === 'object' && typeof child[key] === 'object') {
+    if (isObject(parent[key]) && isObject(child[key])) {
       options[key] = {
         ...parent[key],
         ...child[key]

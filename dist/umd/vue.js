@@ -242,7 +242,7 @@
 
       this.id = id++; // 记录一个唯一的id，用于后面的去重
 
-      this.subs = [];
+      this.subs = []; // 这里存放依赖的watcher
     }
 
     _createClass(Dep, [{
@@ -270,7 +270,8 @@
 
     return Dep;
   }();
-  var stack = []; // 目前可以做到将Watcher保存起来，和移除
+  var stack = [];
+  Dep.target = null; // 目前可以做到将Watcher保存起来，和移除
 
   function pushTarget(watcher) {
     Dep.target = watcher;
@@ -722,15 +723,22 @@
 
   var callbacks = []; // 将用户放入的cb,和内部的cb 都存到一个数组中，最后一起更新
 
-  var pending = false;
+  var pending = false; // 这个队列是否正在等待更新
+
   function nextTick(cb) {
     callbacks.push(cb);
 
     if (!pending) {
       setTimeout(flushCallbacks, 0);
-      pending = true; // 如果正在调用，就拦截一下
+      /* 
+        这里内部做一层优化，先使用微任务，如果不支持再使用宏任务
+          1. 优先使用promise.then，但是在IE低版本中不支持，这里还有一个坑，在IOS的UIwebview中，执行完微任务之后，不会清空队列，需要再执行一下宏任务
+          2. 如果promise 不支持，则使用 window.MutationObserver，这个在IE中不支持，并且在IOS中，会有一些诡异的行为，有时不会触发，所以源码也排除了
+          3. 如果上面的两个微任务都不支持，则使用宏任务，在宏任务中优先使用 setImmediate，这个只在IE下兼容
+          4. 最后以上都不兼容，则降级到 setTimeout
+       */
 
-      callbacks = [];
+      pending = true; // 如果正在调用，就拦截一下，防止重复执行
     }
   }
 
@@ -739,10 +747,12 @@
       return cb();
     });
     pending = false;
+    callbacks = []; // 执行完之后把队列清空
   }
 
   var queue = [];
-  var has = {};
+  var has = {}; // 去重
+
   function queueWatcher(watcher) {
     // 批量更新
     var id = watcher.id;
@@ -784,21 +794,28 @@
       this.options = options;
       this.isRenderWatcher = isRenderWatcher;
       this.depsId = new Set();
-      this.deps = [];
+      this.deps = []; // 这个watcher会存放所有的dep
+
+      vm._watcher = this;
       this.getter = expOrFn; // 将内部传过来的函数放在getter属性上
 
       this.get(); // 调用get方法，会让渲染Watcher执行
+
+      this.value = undefined;
     }
 
     _createClass(Watcher, [{
       key: "get",
       value: function get() {
         // console.log('update'); // 多次调用同一个属性，只更新最后一次
+        var vm = this.vm;
         pushTarget(this); // 将当前的Watcher存起来
 
-        this.getter(); // 执行的就是 vm._update
+        var value = this.getter.call(vm); // 执行的就是 vm._update
 
         popTarget(); // 移除Watcher
+
+        return value;
       }
     }, {
       key: "update",
@@ -822,7 +839,10 @@
     }, {
       key: "run",
       value: function run() {
-        this.get();
+        // 等异步更新的时候来调用此方法
+        var value = this.get();
+        var oldValue = this.value;
+        this.value = value;
       }
     }]);
 
@@ -925,6 +945,12 @@
       var vm = this; // 通过虚拟节点，渲染出真实的dom
 
       vm.$el = patch(vm.$el, vnode); // 需要用虚拟节点创建出真实节点，替换掉原有的$el
+    }, Vue.prototype.$forceUpdate = function () {
+      var vm = this;
+
+      if (vm._watcher) {
+        vm._watcher.update();
+      }
     };
   } // 此方法调用传入的生命周期钩子
 
@@ -934,7 +960,7 @@
     if (handlers) {
       handlers.forEach(function (fn) {
         return fn.call(vm);
-      });
+      }); // 所有的生命周期的this，指向当前实例
     }
   }
 
@@ -977,7 +1003,7 @@
         return options[key] = strats[key](parent[key], child[key]);
       }
 
-      if (_typeof(parent[key]) === 'object' && _typeof(child[key]) === 'object') {
+      if (isObject(parent[key]) && isObject(child[key])) {
         options[key] = _objectSpread2(_objectSpread2({}, parent[key]), child[key]);
       } else if (!child[key]) {
         options[key] = parent[key];
