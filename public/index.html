@@ -6,66 +6,11 @@
   <title>Document</title>
 </head>
 <body>
-  <div id="app" style="color: red; font-size: 20px;">
-    hello
-    <p>name: {{ name }} {{ name }} {{ name }} {{ name }}</p>
-    <p>age: {{ age }}</p>
-    <p>arr: {{ arr }}</p>
+  <div id="app">
   </div>
   <script src="/dist/umd/vue.js"></script>
 
   <script>
-    let vm = new Vue({
-      el: '#app',
-      data() {
-        return {
-          name: 'shenjp',
-          age: '18',
-          address: [{a: 1}, {a: 2}],
-          arr: [[1, 2, 3], 1, 2, 3]
-        }
-      },
-     /*
-      beforeCreate() {
-        console.log('vue beforeCreate');
-      },
-      created() {
-        console.log('created', this.age);
-      },
-      mounted() {
-        console.log('mounted', this.$el);
-      } */
-      // template: `<div></div>`
-      // render() {}
-    });
-    setTimeout(() => {
-      vm.name = 'xxx'; // 依赖收集
-      vm.arr[0].push(4, 5, 6);
-      vm.arr[0].push(7);
-      vm.arr[0].push(8);
-      // console.log(vm.$el.innerHTML) // 这样拿不到最新的值，因为是异步更新的
-      vm.$nextTick(() => { // 在下一个执行队列中取值
-        console.log(vm.$el.innerHTML)
-      })
-      // vm._update(vm._render());
-    }, 1000);
-    /* 
-      这里的模板优先级顺序：render > template > html
-     */
-    // vm._data.name = 'ssss'
-    // vm._data.address.push({a: 3})
-    // console.log(vm._data)
-
-    /*
-      <div id="app">
-        <p>name: {{ name }}</p>
-        <p>age: {{ age }}</p>
-      </div>
-      使用render函数来描述以上DOM结构
-      render() {
-        return _c('div', {id: 'app'}, _c('p', undefined, _v(_s(name))), _c('p', undefined, _v(_s(age))));
-      }
-    */
   </script>
 </body>
 </html>

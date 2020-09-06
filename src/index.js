@@ -16,4 +16,24 @@ lifecycleMixin(Vue);
 // 初始化全局的API
 initGlobalAPI(Vue);
 
+// diff 比较两个树的差异，把前后的DOM渲染在虚拟节点
+import { compileToFunction } from './compiler/index';
+import { createElm, patch } from './vdom/patch'
+
+let vm1 = new Vue({data: {name: 'shen'}});
+let vm2 = new Vue({data: {name: 'jp'}});
+let render1 = compileToFunction(`<div id="b" c="a">{{ name }}</div>`);
+let oldVnode = render1.call(vm1);
+
+let realElm = createElm(oldVnode);
+document.body.appendChild(realElm);
+
+let render2 = compileToFunction('<div id="b">{{ name }}</div>');
+let newVnode = render2.call(vm2);
+setTimeout(() => {
+  patch(oldVnode, newVnode);
+}, 1000);
+
+
+
 export default Vue;

@@ -849,7 +849,7 @@
     return Watcher;
   }();
 
-  function patch(oldVnode, vnode) {
+  function patch(oldVnode, newVnode) {
     // console.log(oldVnode, vnode);
     // 递归创建新的节点。替换掉老的节点
     // 判断是更新还是要渲染
@@ -861,15 +861,38 @@
 
       var parentElm = oldElm.parentNode; // body
 
-      var el = createElm(vnode); // 创建元素
+      var el = createElm(newVnode); // 创建元素
 
       parentElm.insertBefore(el, oldElm.nextSibling); // 插入到老的元素的下一个节点。再把老节点删除，就实现了替换
 
       parentElm.removeChild(oldElm);
       return el; // 将替换后的节点挂载到 $el上
+    } else {
+      // dom diff算法。。同层比较 (On^3)
+      // 不需要跨级比较
+      // 两颗树，要先比较两个根是否一样，再去比较儿子是否一样
+      if (oldVnode.tag !== newVnode.tag) {
+        // 标签名不一致，说明是两个不一样的节点
+        oldVnode.el.parentNode.replaceChild(createElm(newVnode), oldVnode.el);
+      } // 标签一致，或者都是文本
+
+
+      if (!oldVnode.tag) {
+        // 如果是文本，文本变化了。直接用新的文本，替换老的文本
+        if (oldVnode.text !== newVnode.text) {
+          oldVnode.el.textContent = newVnode.text;
+        }
+      } // 一定是标签，而且标签一致
+      // 标签一致，属性不一致
+
+
+      var _el = newVnode.el = oldVnode.el;
+
+      updatePropties(newVnode, oldVnode.data); //更新属性 diff属性
+
+      return _el;
     }
   }
-
   function createElm(vnode) {
     // 根据虚拟节点创建真实的节点
     var tag = vnode.tag,
@@ -896,23 +919,41 @@
     return vnode.el;
   } // 更新属性
 
-
   function updatePropties(vnode) {
+    var oldProps = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    // 需要比较vnode 和 oldProps的差异
     var newProps = vnode.data || {};
-    var el = vnode.el;
+    var el = vnode.el; // 获取老的样式和新的样式的差异，如果新的属性上丢失某个属性，应该删除老的属性
 
-    for (var key in newProps) {
-      if (key === 'style') {
+    var newStyle = newProps.style || {};
+    var oldStyle = oldProps.style || {};
+
+    for (var key in oldStyle) {
+      if (!newStyle[key]) {
+        el.style[key] = ''; // 删除之前的样式
+      }
+    }
+
+    for (var _key in oldProps) {
+      if (!newProps[_key]) {
+        console.log(el);
+        el.removeAttribute(_key); // 如果新的没有属性，则移除老的
+      }
+    } // 其他情况下，直接用新的值覆盖老的就行
+
+
+    for (var _key2 in newProps) {
+      if (_key2 === 'style') {
         // 将样式属性添加上
-        for (var styleName in newProps[key]) {
-          el.style[styleName] = newProps[key][styleName];
+        for (var styleName in newProps[_key2]) {
+          el.style[styleName] = newProps[_key2][styleName];
         }
-      } else if (key === 'class') {
+      } else if (_key2 === 'class') {
         // class特殊处理
-        el.className = newPropsp[key];
+        el.className = newPropsp[_key2];
       } else {
         // 剩下的就直接放上去就行了
-        el.setAttribute(key, newProps[key]);
+        el.setAttribute(_key2, newProps[_key2]);
       }
     }
   }
@@ -1177,7 +1218,26 @@
   renderMinxin(Vue);
   lifecycleMixin(Vue); // 初始化全局的API
 
-  initGlobalAPI(Vue);
+  initGlobalAPI(Vue); // diff 比较两个树的差异，把前后的DOM渲染在虚拟节点
+  var vm1 = new Vue({
+    data: {
+      name: 'shen'
+    }
+  });
+  var vm2 = new Vue({
+    data: {
+      name: 'jp'
+    }
+  });
+  var render1 = compileToFunction("<div id=\"b\" c=\"a\">{{ name }}</div>");
+  var oldVnode = render1.call(vm1);
+  var realElm = createElm(oldVnode);
+  document.body.appendChild(realElm);
+  var render2 = compileToFunction('<div id="b">{{ name }}</div>');
+  var newVnode = render2.call(vm2);
+  setTimeout(function () {
+    patch(oldVnode, newVnode);
+  }, 1000);
 
   return Vue;
 
