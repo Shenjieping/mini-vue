@@ -22,13 +22,23 @@ import { createElm, patch } from './vdom/patch'
 
 let vm1 = new Vue({data: {name: 'shen'}});
 let vm2 = new Vue({data: {name: 'jp'}});
-let render1 = compileToFunction(`<div id="b" c="a">{{ name }}</div>`);
+let render1 = compileToFunction(`<div id="b">
+  <li key="A">A</li>
+  <li key="B">B</li>
+  <li key="C">C</li>
+  <li key="D">D</li>
+</div>`);
 let oldVnode = render1.call(vm1);
 
 let realElm = createElm(oldVnode);
 document.body.appendChild(realElm);
 
-let render2 = compileToFunction('<div id="b">{{ name }}</div>');
+let render2 = compileToFunction(`<div id="b">
+  <li key="C">C</li>
+  <li key="D">D</li>
+  <li key="M">M</li>
+  <li key="E">E</li>
+</div>`);
 let newVnode = render2.call(vm2);
 setTimeout(() => {
   patch(oldVnode, newVnode);
